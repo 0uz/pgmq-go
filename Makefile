@@ -23,6 +23,9 @@ release:
 ifndef VERSION
 	$(error VERSION is required. Usage: make release VERSION=v1.1.0)
 endif
+ifeq ($(filter v%,$(VERSION)),)
+	$(error VERSION must start with 'v'. Example: make release VERSION=v1.1.0)
+endif
 	@echo "Running tests..."
 	@$(MAKE) test
 	@echo "Creating tag $(VERSION)..."
