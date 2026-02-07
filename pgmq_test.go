@@ -8,10 +8,9 @@ import (
 	"testing"
 	"time"
 
-	pgmq "github.com/ouz/pgmq-go"
-
 	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgmq "github.com/ouz/pgmq-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -127,7 +126,7 @@ func pgmqVersion(t *testing.T, pool *pgxpool.Pool) string {
 
 // parseVersion parses a version string like "1.5.1" into comparable ints.
 func parseVersion(v string) (major, minor, patch int) {
-	fmt.Sscanf(v, "%d.%d.%d", &major, &minor, &patch)
+	_, _ = fmt.Sscanf(v, "%d.%d.%d", &major, &minor, &patch)
 	return
 }
 
