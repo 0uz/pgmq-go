@@ -17,3 +17,18 @@ lint: fmt-check
 .PHONY: tidy
 tidy:
 	go mod tidy
+
+.PHONY: release
+release:
+ifndef VERSION
+	$(error VERSION is required. Usage: make release VERSION=v1.1.0)
+endif
+	@echo "Running tests..."
+	@$(MAKE) test
+	@echo "Creating tag $(VERSION)..."
+	-git tag -d $(VERSION) 2>/dev/null
+	-git push origin :refs/tags/$(VERSION) 2>/dev/null
+	git tag $(VERSION)
+	git push origin $(VERSION)
+	@echo "Release $(VERSION) tagged and pushed."
+	@echo "Create the release at: https://github.com/0uz/pgmq-go/releases/new?tag=$(VERSION)"
