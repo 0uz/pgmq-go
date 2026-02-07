@@ -8,10 +8,10 @@ import "context"
 // polling.
 //
 // The throttleIntervalMs parameter controls the minimum interval between
-// notifications in milliseconds. Use 0 for the default of 250ms.
+// notifications in milliseconds. Use 0 to disable throttling.
 func (c *Client) EnableNotifyInsert(ctx context.Context, queue string, throttleIntervalMs int) error {
-	if throttleIntervalMs <= 0 {
-		throttleIntervalMs = 250
+	if throttleIntervalMs < 0 {
+		return ErrInvalidOption
 	}
 
 	_, err := c.db.Exec(ctx, "SELECT pgmq.enable_notify_insert($1, $2)", queue, throttleIntervalMs)

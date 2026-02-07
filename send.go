@@ -15,8 +15,7 @@ import (
 //	client.Send(ctx, "my_queue", msg, WithHeaders(h))
 //	client.Send(ctx, "my_queue", msg, WithHeaders(h), WithDelay(10))
 //	client.Send(ctx, "my_queue", msg, WithDelayTimestamp(t))
-//
-// Note: WithDelayTimestamp cannot be combined with WithHeaders (PGMQ limitation).
+//	client.Send(ctx, "my_queue", msg, WithHeaders(h), WithDelayTimestamp(t))
 func (c *Client) Send(ctx context.Context, queue string, msg json.RawMessage, opts ...SendOption) (int64, error) {
 	o := &sendOpts{}
 	for _, opt := range opts {
@@ -47,8 +46,7 @@ func (c *Client) Send(ctx context.Context, queue string, msg json.RawMessage, op
 //	client.SendBatch(ctx, "my_queue", msgs, WithBatchHeaders(headers))
 //	client.SendBatch(ctx, "my_queue", msgs, WithBatchHeaders(headers), WithDelay(10))
 //	client.SendBatch(ctx, "my_queue", msgs, WithDelayTimestamp(t))
-//
-// Note: WithDelayTimestamp cannot be combined with WithBatchHeaders (PGMQ limitation).
+//	client.SendBatch(ctx, "my_queue", msgs, WithBatchHeaders(headers), WithDelayTimestamp(t))
 func (c *Client) SendBatch(ctx context.Context, queue string, msgs []json.RawMessage, opts ...SendOption) ([]int64, error) {
 	o := &sendOpts{}
 	for _, opt := range opts {
@@ -57,6 +55,14 @@ func (c *Client) SendBatch(ctx context.Context, queue string, msgs []json.RawMes
 
 	if err := validateSendOpts(o); err != nil {
 		return nil, err
+	}
+
+	if len(msgs) == 0 {
+		return nil, fmt.Errorf("%w: msgs must contain at least one message", ErrInvalidOption)
+	}
+
+	if len(o.batchHeaders) > 0 && len(o.batchHeaders) != len(msgs) {
+		return nil, fmt.Errorf("%w: batch headers length must match msgs length", ErrInvalidOption)
 	}
 
 	query, args := buildSendBatchQuery(queue, msgs, o)
@@ -89,15 +95,6 @@ func validateSendOpts(o *sendOpts) error {
 		return fmt.Errorf("%w: cannot use both WithDelay and WithDelayTimestamp", ErrInvalidOption)
 	}
 
-	// PGMQ does not have an overload for headers + timestamp delay.
-	if len(o.headers) > 0 && o.delayTimestamp != nil {
-		return fmt.Errorf("%w: cannot use WithHeaders with WithDelayTimestamp (unsupported by PGMQ)", ErrInvalidOption)
-	}
-
-	if len(o.batchHeaders) > 0 && o.delayTimestamp != nil {
-		return fmt.Errorf("%w: cannot use WithBatchHeaders with WithDelayTimestamp (unsupported by PGMQ)", ErrInvalidOption)
-	}
-
 	return nil
 }
 
@@ -106,6 +103,8 @@ func buildSendQuery(queue string, msg json.RawMessage, o *sendOpts) (string, []a
 	switch {
 	case len(o.headers) > 0 && o.delay != nil:
 		return "SELECT * FROM pgmq.send($1, $2, $3::jsonb, $4::int)", []any{queue, msg, o.headers, *o.delay}
+	case len(o.headers) > 0 && o.delayTimestamp != nil:
+		return "SELECT * FROM pgmq.send($1, $2, $3::jsonb, $4::timestamptz)", []any{queue, msg, o.headers, *o.delayTimestamp}
 	case len(o.headers) > 0:
 		return "SELECT * FROM pgmq.send($1, $2, $3::jsonb)", []any{queue, msg, o.headers}
 	case o.delayTimestamp != nil:
@@ -122,6 +121,8 @@ func buildSendBatchQuery(queue string, msgs []json.RawMessage, o *sendOpts) (str
 	switch {
 	case len(o.batchHeaders) > 0 && o.delay != nil:
 		return "SELECT * FROM pgmq.send_batch($1, $2::jsonb[], $3::jsonb[], $4::int)", []any{queue, msgs, o.batchHeaders, *o.delay}
+	case len(o.batchHeaders) > 0 && o.delayTimestamp != nil:
+		return "SELECT * FROM pgmq.send_batch($1, $2::jsonb[], $3::jsonb[], $4::timestamptz)", []any{queue, msgs, o.batchHeaders, *o.delayTimestamp}
 	case len(o.batchHeaders) > 0:
 		return "SELECT * FROM pgmq.send_batch($1, $2::jsonb[], $3::jsonb[])", []any{queue, msgs, o.batchHeaders}
 	case o.delayTimestamp != nil:

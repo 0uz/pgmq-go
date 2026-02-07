@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	pgmq "github.com/0uz/pgmq-go"
 	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pgmq "github.com/0uz/pgmq-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -124,6 +124,38 @@ func pgmqVersion(t *testing.T, pool *pgxpool.Pool) string {
 	return version
 }
 
+// hasPGMQFunction returns true if a pgmq function with the given name exists.
+func hasPGMQFunction(t *testing.T, pool *pgxpool.Pool, name string) bool {
+	t.Helper()
+	var exists bool
+	err := pool.QueryRow(context.Background(), `
+		SELECT EXISTS (
+			SELECT 1
+			FROM pg_proc p
+			JOIN pg_namespace n ON n.oid = p.pronamespace
+			WHERE n.nspname = 'pgmq' AND p.proname = $1
+		)
+	`, name).Scan(&exists)
+	if err != nil {
+		t.Fatalf("failed to check pgmq function %s: %v", name, err)
+	}
+	return exists
+}
+
+// hasExtension returns true if the given extension is installed.
+func hasExtension(t *testing.T, pool *pgxpool.Pool, name string) bool {
+	t.Helper()
+	var exists bool
+	err := pool.QueryRow(context.Background(),
+		"SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = $1)",
+		name,
+	).Scan(&exists)
+	if err != nil {
+		t.Fatalf("failed to check extension %s: %v", name, err)
+	}
+	return exists
+}
+
 // parseVersion parses a version string like "1.5.1" into comparable ints.
 func parseVersion(v string) (major, minor, patch int) {
 	_, _ = fmt.Sscanf(v, "%d.%d.%d", &major, &minor, &patch)
@@ -172,6 +204,33 @@ func TestCreateAndDropQueue(t *testing.T) {
 
 	err = pg17.client.DropQueue(ctx, queue)
 	require.NoError(t, err)
+}
+
+func TestCreateNonPartitionedQueue(t *testing.T) {
+	if !hasPGMQFunction(t, pg17.pool, "create_non_partitioned") {
+		t.Skip("pgmq.create_non_partitioned not available")
+	}
+
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateNonPartitionedQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	queues, err := pg17.client.ListQueues(ctx)
+	require.NoError(t, err)
+
+	found := false
+	for _, q := range queues {
+		if q.QueueName == queue {
+			found = true
+			assert.False(t, q.IsPartitioned)
+			assert.False(t, q.IsUnlogged)
+			break
+		}
+	}
+	assert.True(t, found, "queue %s not found in list", queue)
 }
 
 func TestDropQueueNotExist(t *testing.T) {
@@ -404,6 +463,39 @@ func TestSendBatchWithDelayTimestamp(t *testing.T) {
 	assert.Len(t, ids, 2)
 }
 
+func TestSendBatchEmptyMessages(t *testing.T) {
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	_, err = pg17.client.SendBatch(ctx, queue, []json.RawMessage{})
+	require.ErrorIs(t, err, pgmq.ErrInvalidOption)
+}
+
+func TestSendBatchHeaderLengthMismatch(t *testing.T) {
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	headers := []json.RawMessage{
+		json.RawMessage(`{"x": 1}`),
+	}
+
+	_, err = pg17.client.SendBatch(
+		ctx,
+		queue,
+		[]json.RawMessage{testMsg1, testMsg2},
+		pgmq.WithBatchHeaders(headers),
+	)
+	require.ErrorIs(t, err, pgmq.ErrInvalidOption)
+}
+
 // --- Read ---
 
 func TestRead(t *testing.T) {
@@ -621,6 +713,53 @@ func TestArchiveBatch(t *testing.T) {
 	assert.EqualValues(t, 2, tag.RowsAffected())
 }
 
+func TestConvertArchivePartitioned(t *testing.T) {
+	if !hasPGMQFunction(t, pg17.pool, "convert_archive_partitioned") {
+		t.Skip("pgmq.convert_archive_partitioned not available")
+	}
+	if !hasExtension(t, pg17.pool, "pg_partman") {
+		t.Skip("pg_partman not installed")
+	}
+
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	id, err := pg17.client.Send(ctx, queue, testMsg1)
+	require.NoError(t, err)
+
+	_, err = pg17.client.Archive(ctx, queue, id)
+	require.NoError(t, err)
+
+	err = pg17.client.ConvertArchivePartitioned(ctx, queue, "10000", "100000", 10)
+	require.NoError(t, err)
+}
+
+func TestDetachArchive(t *testing.T) {
+	if !hasPGMQFunction(t, pg17.pool, "detach_archive") {
+		t.Skip("pgmq.detach_archive not available")
+	}
+
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	id, err := pg17.client.Send(ctx, queue, testMsg1)
+	require.NoError(t, err)
+
+	_, err = pg17.client.Archive(ctx, queue, id)
+	require.NoError(t, err)
+
+	err = pg17.client.DetachArchive(ctx, queue)
+	require.NoError(t, err)
+}
+
 // --- Delete ---
 
 func TestDelete(t *testing.T) {
@@ -789,6 +928,56 @@ func TestEnableDisableNotify(t *testing.T) {
 	require.NoError(t, err)
 
 	err = pg17.client.DisableNotifyInsert(ctx, queue)
+	require.NoError(t, err)
+}
+
+func TestEnableNotifyInsertNoThrottle(t *testing.T) {
+	skipIfPGMQBefore(t, pg17.pool, "1.7.0")
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	err = pg17.client.EnableNotifyInsert(ctx, queue, 0)
+	require.NoError(t, err)
+
+	err = pg17.client.DisableNotifyInsert(ctx, queue)
+	require.NoError(t, err)
+}
+
+// --- FIFO Indexes ---
+
+func TestCreateFIFOIndex(t *testing.T) {
+	if !hasPGMQFunction(t, pg17.pool, "create_fifo_index") {
+		t.Skip("pgmq.create_fifo_index not available")
+	}
+
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	err = pg17.client.CreateFIFOIndex(ctx, queue)
+	require.NoError(t, err)
+}
+
+func TestCreateFIFOIndexesAll(t *testing.T) {
+	if !hasPGMQFunction(t, pg17.pool, "create_fifo_indexes_all") {
+		t.Skip("pgmq.create_fifo_indexes_all not available")
+	}
+
+	ctx := context.Background()
+	queue := t.Name()
+
+	err := pg17.client.CreateQueue(ctx, queue)
+	require.NoError(t, err)
+	defer func() { _ = pg17.client.DropQueue(ctx, queue) }()
+
+	err = pg17.client.CreateFIFOIndexesAll(ctx)
 	require.NoError(t, err)
 }
 
