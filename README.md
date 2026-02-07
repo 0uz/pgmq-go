@@ -25,7 +25,7 @@ Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
 ## Installation
 
 ```bash
-go get github.com/ouz/pgmq-go
+go get github.com/0uz/pgmq-go
 ```
 
 ## Quick Start
@@ -45,7 +45,7 @@ import (
     "fmt"
     "log"
 
-    pgmq "github.com/ouz/pgmq-go"
+    pgmq "github.com/0uz/pgmq-go"
 )
 
 func main() {

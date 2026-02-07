@@ -1,4 +1,4 @@
-module github.com/ouz/pgmq-go
+module github.com/0uz/pgmq-go
 
 go 1.25.7
 

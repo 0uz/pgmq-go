@@ -10,7 +10,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pgmq "github.com/ouz/pgmq-go"
+	pgmq "github.com/0uz/pgmq-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
