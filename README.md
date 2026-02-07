@@ -8,7 +8,6 @@ Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
 
 ## Features
 
-- Full PGMQ v1.10.0 API coverage
 - Struct-based `Client` with method API
 - Functional options for send and read operations
 - Works with `*pgxpool.Pool`, `*pgx.Conn`, and `pgx.Tx`
@@ -20,7 +19,6 @@ Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
 - LISTEN/NOTIFY support
 - Visibility timeout with int or timestamp
 - Partitioned and unlogged queues
-- Comprehensive test suite
 
 ## Installation
 
