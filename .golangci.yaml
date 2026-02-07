@@ -7,7 +7,6 @@ run:
 linters:
   enable:
     - errname
-    - gci
     - gosec
     - sqlclosecheck
     - stylecheck
@@ -16,4 +15,5 @@ linters:
 
 formatters:
   enable:
+    - gci
     - gofmt
