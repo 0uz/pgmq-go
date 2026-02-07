@@ -4,7 +4,7 @@ A Go client for [Postgres Message Queue](https://github.com/pgmq/pgmq) (PGMQ).
 
 Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
 
-[![CI](https://github.com/ouz/pgmq-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/ouz/pgmq-go/actions/workflows/ci.yaml)
+[![CI](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml)
 
 ## Features
 
@@ -33,7 +33,7 @@ go get github.com/ouz/pgmq-go
 Start a Postgres instance with PGMQ:
 
 ```bash
-docker run -d --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 quay.io/tembo/pgmq-pg:latest
+docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.7.0
 ```
 
 ```go
