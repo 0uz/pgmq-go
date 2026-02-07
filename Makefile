@@ -8,7 +8,7 @@ fmt-check:
 
 .PHONY: test
 test:
-	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	cd tests && go test -race -coverprofile=../coverage.out -covermode=atomic ./...
 
 .PHONY: lint
 lint: fmt-check
