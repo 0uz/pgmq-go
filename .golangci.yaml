@@ -1,0 +1,14 @@
+run:
+  timeout: 3m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errname
+    - gci
+    - gofmt
+    - gosec
+    - sqlclosecheck
+    - stylecheck
+    - unconvert
+    - unparam
