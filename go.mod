@@ -1,8 +1,6 @@
 module github.com/ouz/pgmq-go
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.7
 
 require (
 	github.com/avast/retry-go/v4 v4.7.0
@@ -62,7 +60,6 @@ require (
 	go.opentelemetry.io/otel v1.40.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.40.0 // indirect
 	go.opentelemetry.io/otel/metric v1.40.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.40.0 // indirect
 	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
