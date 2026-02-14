@@ -1,6 +1,6 @@
 module github.com/0uz/pgmq-go/tests
 
-go 1.25.7
+go 1.26
 
 require (
 	github.com/0uz/pgmq-go v0.0.0
