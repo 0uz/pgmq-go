@@ -1,4 +1,4 @@
-// Package pgmq provides a Go client for Postgres Message Queue (PGMQ) v1.10.0+.
+// Package pgmq provides a Go client for Postgres Message Queue (PGMQ) v1.12.0+.
 //
 // It supports PostgreSQL 16, 17, and 18 with full coverage of the PGMQ SQL API
 // including queue management, message sending/reading, metrics, and LISTEN/NOTIFY.

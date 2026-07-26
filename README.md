@@ -2,7 +2,7 @@
 
 A Go client for [Postgres Message Queue](https://github.com/pgmq/pgmq) (PGMQ).
 
-Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
+Supports **PGMQ v1.12.0** and **PostgreSQL 16, 17, 18**.
 
 [![CI](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml)
 
@@ -14,9 +14,12 @@ Supports **PGMQ v1.10.0** and **PostgreSQL 16, 17, 18**.
 - Message headers support
 - Long-polling reads (`read_with_poll`)
 - FIFO grouped reads (standard and round-robin)
+- FIFO group-head reads with long-polling
+- Topic routing, bindings, and routing inspection
 - Batch operations (send, read, pop, delete, archive, set_vt)
 - Queue metrics and listing
 - LISTEN/NOTIFY support
+- Transaction-level queue locks
 - Visibility timeout with int or timestamp
 - Partitioned and unlogged queues
 
@@ -31,7 +34,7 @@ go get github.com/0uz/pgmq-go
 Start a Postgres instance with PGMQ:
 
 ```bash
-docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.7.0
+docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.12.0
 ```
 
 ```go
@@ -108,6 +111,7 @@ client.Ping(ctx)
 
 ```go
 client.CreateQueue(ctx, "my_queue")
+client.AcquireQueueLock(ctx, "my_queue") // held until the current transaction ends
 client.CreateUnloggedQueue(ctx, "my_queue")
 client.CreatePartitionedQueue(ctx, "my_queue", "10000", "100000")
 client.DropQueue(ctx, "my_queue")
@@ -162,6 +166,27 @@ msgs, _ := client.PopBatch(ctx, "my_queue", 10)
 // Grouped reads (FIFO by x-pgmq-group header).
 msgs, _ := client.ReadGrouped(ctx, "my_queue", 30, 10)
 msgs, _ := client.ReadGroupedRoundRobin(ctx, "my_queue", 30, 10)
+msgs, _ := client.ReadGroupedHead(ctx, "my_queue", 30, 10)
+msgs, _ := client.ReadGroupedHeadWithPoll(ctx, "my_queue", 30, 10,
+    pgmq.WithMaxPollSeconds(5),
+)
+```
+
+### Topic Routing
+
+```go
+client.BindTopic(ctx, "orders.#", "order_processor")
+client.BindTopic(ctx, "orders.*.created", "order_analytics")
+
+// Send to every queue matching the routing key.
+matched, _ := client.SendTopic(ctx, "orders.eu.created", msg)
+sent, _ := client.SendBatchTopic(ctx, "orders.eu.created", msgs,
+    pgmq.WithBatchHeaders(headers),
+)
+
+bindings, _ := client.ListTopicBindings(ctx)
+routes, _ := client.TestRouting(ctx, "orders.eu.created")
+client.UnbindTopic(ctx, "orders.#", "order_processor")
 ```
 
 ### Message Management
@@ -199,6 +224,8 @@ client.EnableNotifyInsert(ctx, "my_queue", 250)
 
 // Disable notifications.
 client.DisableNotifyInsert(ctx, "my_queue")
+client.UpdateNotifyInsert(ctx, "my_queue", 1000)
+throttles, _ := client.ListNotifyInsertThrottles(ctx)
 ```
 
 ### Transaction Support

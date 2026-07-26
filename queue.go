@@ -16,6 +16,17 @@ func (c *Client) CreateQueue(ctx context.Context, queue string) error {
 	return nil
 }
 
+// AcquireQueueLock acquires a transaction-level advisory lock for a queue.
+// The lock is held until the current transaction commits or rolls back.
+func (c *Client) AcquireQueueLock(ctx context.Context, queue string) error {
+	_, err := c.db.Exec(ctx, "SELECT pgmq.acquire_queue_lock($1)", queue)
+	if err != nil {
+		return wrapPostgresError(err)
+	}
+
+	return nil
+}
+
 // CreateNonPartitionedQueue creates a new non-partitioned queue.
 // This is functionally equivalent to CreateQueue.
 func (c *Client) CreateNonPartitionedQueue(ctx context.Context, queue string) error {

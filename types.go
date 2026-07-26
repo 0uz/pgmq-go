@@ -35,6 +35,34 @@ type Metrics struct {
 	QueueVisibleLength int64
 }
 
+// TopicBinding represents a topic pattern bound to a queue.
+type TopicBinding struct {
+	Pattern       string
+	QueueName     string
+	BoundAt       time.Time
+	CompiledRegex string
+}
+
+// TopicRoute describes a queue that matches a routing key.
+type TopicRoute struct {
+	Pattern       string
+	QueueName     string
+	CompiledRegex string
+}
+
+// TopicMessage is a message delivered to a queue by topic routing.
+type TopicMessage struct {
+	QueueName string
+	MsgID     int64
+}
+
+// NotifyInsertThrottle represents the insert notification configuration for a queue.
+type NotifyInsertThrottle struct {
+	QueueName          string
+	ThrottleIntervalMs int
+	LastNotifiedAt     time.Time
+}
+
 // sendOpts holds optional parameters for Send and SendBatch operations.
 type sendOpts struct {
 	delay          *int

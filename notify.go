@@ -32,3 +32,41 @@ func (c *Client) DisableNotifyInsert(ctx context.Context, queue string) error {
 
 	return nil
 }
+
+// UpdateNotifyInsert changes the throttle interval for an enabled queue.
+func (c *Client) UpdateNotifyInsert(ctx context.Context, queue string, throttleIntervalMs int) error {
+	if throttleIntervalMs < 0 {
+		return ErrInvalidOption
+	}
+
+	_, err := c.db.Exec(ctx, "SELECT pgmq.update_notify_insert($1, $2)", queue, throttleIntervalMs)
+	if err != nil {
+		return wrapPostgresError(err)
+	}
+
+	return nil
+}
+
+// ListNotifyInsertThrottles returns notification throttle settings for enabled queues.
+func (c *Client) ListNotifyInsertThrottles(ctx context.Context) ([]NotifyInsertThrottle, error) {
+	rows, err := c.db.Query(ctx, "SELECT * FROM pgmq.list_notify_insert_throttles()")
+	if err != nil {
+		return nil, wrapPostgresError(err)
+	}
+	defer rows.Close()
+
+	var throttles []NotifyInsertThrottle
+	for rows.Next() {
+		var throttle NotifyInsertThrottle
+		if err := rows.Scan(&throttle.QueueName, &throttle.ThrottleIntervalMs, &throttle.LastNotifiedAt); err != nil {
+			return nil, wrapPostgresError(err)
+		}
+		throttles = append(throttles, throttle)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, wrapPostgresError(err)
+	}
+
+	return throttles, nil
+}

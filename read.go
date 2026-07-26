@@ -226,6 +226,49 @@ func (c *Client) ReadGroupedRoundRobinWithPoll(ctx context.Context, queue string
 	return collectMessages(rows)
 }
 
+// ReadGroupedHead reads the oldest visible message from up to qty FIFO groups.
+// At most one message is returned for each group.
+func (c *Client) ReadGroupedHead(ctx context.Context, queue string, vt int64, qty int64) ([]*Message, error) {
+	if vt == 0 {
+		vt = vtDefault
+	}
+
+	rows, err := c.db.Query(ctx, "SELECT * FROM pgmq.read_grouped_head($1, $2, $3)", queue, vt, qty)
+	if err != nil {
+		return nil, wrapPostgresError(err)
+	}
+	defer rows.Close()
+
+	return collectMessages(rows)
+}
+
+// ReadGroupedHeadWithPoll reads the oldest visible message from up to qty FIFO
+// groups and waits for new messages when no eligible group heads are available.
+func (c *Client) ReadGroupedHeadWithPoll(ctx context.Context, queue string, vt int64, qty int64, opts ...PollOption) ([]*Message, error) {
+	if vt == 0 {
+		vt = vtDefault
+	}
+
+	o := &pollOpts{
+		maxPollSeconds: 5,
+		pollIntervalMs: 100,
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	rows, err := c.db.Query(ctx,
+		"SELECT * FROM pgmq.read_grouped_head_with_poll($1, $2, $3, $4, $5)",
+		queue, vt, qty, o.maxPollSeconds, o.pollIntervalMs,
+	)
+	if err != nil {
+		return nil, wrapPostgresError(err)
+	}
+	defer rows.Close()
+
+	return collectMessages(rows)
+}
+
 // collectMessages collects all messages from pgx.Rows and returns them.
 func collectMessages(rows pgx.Rows) ([]*Message, error) {
 	var msgs []*Message
