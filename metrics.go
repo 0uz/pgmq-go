@@ -14,6 +14,7 @@ func (c *Client) Metrics(ctx context.Context, queue string) (*Metrics, error) {
 		&m.TotalMessages,
 		&m.ScrapeTime,
 		&m.QueueVisibleLength,
+		&m.DefaultPartitionLength,
 	)
 	if err != nil {
 		return nil, wrapPostgresError(err)
@@ -41,6 +42,7 @@ func (c *Client) MetricsAll(ctx context.Context) ([]Metrics, error) {
 			&m.TotalMessages,
 			&m.ScrapeTime,
 			&m.QueueVisibleLength,
+			&m.DefaultPartitionLength,
 		); err != nil {
 			return nil, wrapPostgresError(err)
 		}

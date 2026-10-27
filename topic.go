@@ -85,8 +85,8 @@ func (c *Client) TestRouting(ctx context.Context, routingKey string) ([]TopicRou
 }
 
 // SendTopic sends a message to every queue whose binding matches routingKey.
-// WithHeaders and WithDelay are supported. PGMQ v1.12 does not provide a
-// timestamp overload for send_topic, so WithDelayTimestamp is rejected.
+// WithHeaders and WithDelay are supported. PGMQ does not provide a timestamp
+// overload for send_topic, so WithDelayTimestamp is rejected.
 func (c *Client) SendTopic(ctx context.Context, routingKey string, msg json.RawMessage, opts ...SendOption) (int64, error) {
 	o := &sendOpts{}
 	for _, opt := range opts {

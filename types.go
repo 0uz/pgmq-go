@@ -10,7 +10,7 @@ type Message struct {
 	MsgID      int64
 	ReadCount  int64
 	EnqueuedAt time.Time
-	LastReadAt *time.Time // Available in PGMQ v1.10.0+
+	LastReadAt *time.Time
 	VT         time.Time
 	Message    json.RawMessage
 	Headers    json.RawMessage
@@ -26,13 +26,14 @@ type QueueInfo struct {
 
 // Metrics represents statistics for a single PGMQ queue.
 type Metrics struct {
-	QueueName          string
-	QueueLength        int64
-	NewestMsgAgeSec    *int64
-	OldestMsgAgeSec    *int64
-	TotalMessages      int64
-	ScrapeTime         time.Time
-	QueueVisibleLength int64
+	QueueName              string
+	QueueLength            int64
+	NewestMsgAgeSec        *int64
+	OldestMsgAgeSec        *int64
+	TotalMessages          int64
+	ScrapeTime             time.Time
+	QueueVisibleLength     int64
+	DefaultPartitionLength *int64
 }
 
 // TopicBinding represents a topic pattern bound to a queue.

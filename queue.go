@@ -52,10 +52,27 @@ func (c *Client) CreateUnloggedQueue(ctx context.Context, queue string) error {
 
 // CreatePartitionedQueue creates a new partitioned queue. Requires the
 // pg_partman extension. partitionInterval controls the range of each
-// partition (e.g. "10000" for ID-based), and retentionInterval controls
-// how long partitions are kept (e.g. "100000").
-func (c *Client) CreatePartitionedQueue(ctx context.Context, queue string, partitionInterval string, retentionInterval string) error {
-	_, err := c.db.Exec(ctx, "SELECT pgmq.create_partitioned($1, $2, $3)", queue, partitionInterval, retentionInterval)
+// partition, retentionInterval controls how long partitions are kept, and
+// premake is the number of partitions to create ahead of time.
+func (c *Client) CreatePartitionedQueue(
+	ctx context.Context,
+	queue string,
+	partitionInterval string,
+	retentionInterval string,
+	premake int,
+) error {
+	if premake < 1 {
+		return fmt.Errorf("%w: premake must be at least 1", ErrInvalidOption)
+	}
+
+	_, err := c.db.Exec(
+		ctx,
+		"SELECT pgmq.create_partitioned($1, $2, $3, $4)",
+		queue,
+		partitionInterval,
+		retentionInterval,
+		premake,
+	)
 	if err != nil {
 		return wrapPostgresError(err)
 	}

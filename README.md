@@ -2,7 +2,7 @@
 
 A Go client for [Postgres Message Queue](https://github.com/pgmq/pgmq) (PGMQ).
 
-Supports **PGMQ v1.12.0** and **PostgreSQL 16, 17, 18**.
+Supports **PGMQ v1.13.1** and **PostgreSQL 16, 17, 18**.
 
 [![CI](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/0uz/pgmq-go/actions/workflows/ci.yaml)
 
@@ -22,6 +22,7 @@ Supports **PGMQ v1.12.0** and **PostgreSQL 16, 17, 18**.
 - Transaction-level queue locks
 - Visibility timeout with int or timestamp
 - Partitioned and unlogged queues
+- pg_partman partition premake and default-partition metrics
 
 ## Installation
 
@@ -34,7 +35,7 @@ go get github.com/0uz/pgmq-go
 Start a Postgres instance with PGMQ:
 
 ```bash
-docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.12.0
+docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.13.1
 ```
 
 ```go
@@ -113,7 +114,7 @@ client.Ping(ctx)
 client.CreateQueue(ctx, "my_queue")
 client.AcquireQueueLock(ctx, "my_queue") // held until the current transaction ends
 client.CreateUnloggedQueue(ctx, "my_queue")
-client.CreatePartitionedQueue(ctx, "my_queue", "10000", "100000")
+client.CreatePartitionedQueue(ctx, "my_queue", "10000", "100000", 6)
 client.DropQueue(ctx, "my_queue")
 
 queues, _ := client.ListQueues(ctx)
@@ -250,7 +251,7 @@ type Message struct {
     MsgID      int64
     ReadCount  int64
     EnqueuedAt time.Time
-    LastReadAt *time.Time      // PGMQ v1.10.0+
+    LastReadAt *time.Time
     VT         time.Time
     Message    json.RawMessage
     Headers    json.RawMessage
@@ -272,13 +273,14 @@ type QueueInfo struct {
 
 ```go
 type Metrics struct {
-    QueueName          string
-    QueueLength        int64
-    NewestMsgAgeSec    *int64
-    OldestMsgAgeSec    *int64
-    TotalMessages      int64
-    ScrapeTime         time.Time
-    QueueVisibleLength int64
+    QueueName              string
+    QueueLength            int64
+    NewestMsgAgeSec        *int64
+    OldestMsgAgeSec        *int64
+    TotalMessages          int64
+    ScrapeTime             time.Time
+    QueueVisibleLength     int64
+    DefaultPartitionLength *int64
 }
 ```
 
